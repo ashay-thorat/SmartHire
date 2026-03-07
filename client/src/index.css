@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #fffffe;
+  color: #1a1a1a;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.font-serif {
+  font-family: 'Instrument Serif', serif;
+}
