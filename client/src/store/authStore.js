@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
-import { auth, googleProvider } from '../firebase';
+import { firebaseGoogleLogin } from '../firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -70,7 +70,7 @@ export const useAuthStore = create((set, get) => ({
   googleLogin: async (role) => {
     set({ loading: true, error: null });
     try {
-      const result = await auth.signInWithPopup(googleProvider);
+      const result = await firebaseGoogleLogin();
       const idToken = await result.user.getIdToken();
 
       const response = await api.post('/auth/google', { idToken, role });

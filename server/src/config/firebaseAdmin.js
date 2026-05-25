@@ -5,10 +5,20 @@ dotenv.config();
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 
-if (!projectId) {
-  console.warn('FIREBASE_PROJECT_ID not set — Google auth endpoint will return errors');
-}
+const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
 
-admin.initializeApp({ projectId });
+if (serviceAccountJson) {
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  } catch (e) {
+    console.error('Invalid FIREBASE_SERVICE_ACCOUNT JSON:', e.message);
+    process.exit(1);
+  }
+} else if (projectId) {
+  admin.initializeApp({ projectId });
+} else {
+  console.warn('Neither FIREBASE_PROJECT_ID nor FIREBASE_SERVICE_ACCOUNT set');
+}
 
 export default admin;
