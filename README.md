@@ -136,30 +136,71 @@ Visit `http://localhost:5173`
 
 ## Deployment
 
-### Option A — Render (recommended for backend)
+### Frontend — Vercel
 
-1. Create a **Web Service** from your GitHub repo
+1. Push your repo to GitHub
+2. Go to [vercel.com](https://vercel.com) → **Add New Project** → Import your GitHub repo
+3. **Root Directory:** `client`
+4. **Framework Preset:** Vite
+5. **Build Command:** `npm run build`
+6. **Output Directory:** `dist`
+7. **Environment Variables** (add all from `client/.env`):
+
+| Variable | Example |
+|----------|---------|
+| `VITE_API_URL` | `https://your-backend.railway.app/api` |
+| `VITE_FIREBASE_API_KEY` | `AIzaSy...` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `your-project.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | `your-project-id` |
+| `VITE_RAPIDAPI_KEY` | `your-rapidapi-key` |
+
+8. Deploy — Vercel auto-detects Vite and handles SPA routing
+
+> **Important:** `VITE_API_URL` must point to your deployed Railway backend URL (e.g. `https://smarthire-server.up.railway.app/api`), not `localhost`.
+
+---
+
+### Backend — Railway
+
+1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
 2. **Root Directory:** `server`
-3. **Build Command:** `npm install`
-4. **Start Command:** `node server.js`
-5. Add all environment variables from `server/.env` in Render dashboard
-6. Ensure `CLIENT_URL` points to your frontend URL
+3. Railway auto-detects Node.js — no extra build config needed
+4. **Start Command** (set in Railway settings): `node server.js`
+5. **Environment Variables** (add all from `server/.env`):
 
-### Option B — Vercel / Netlify (frontend)
+| Variable | Example |
+|----------|---------|
+| `PORT` | `5000` (Railway sets this automatically) |
+| `NEON_DATABASE_URL` | `postgresql://...` |
+| `JWT_SECRET` | `your-jwt-secret` |
+| `JWT_REFRESH_SECRET` | `your-jwt-refresh-secret` |
+| `GROQ_API_KEY` | `gsk_your_groq_key` |
+| `CLIENT_URL` | `https://your-frontend.vercel.app` |
+| `FIREBASE_PROJECT_ID` | `your-firebase-project-id` |
 
-Build:
+6. Deploy — Railway provides a public URL like `https://smarthire-server.up.railway.app`
+7. Update `VITE_API_URL` in Vercel env vars to match this URL
+
+> **Neon Tip:** If your Neon DB has IP restrictions, allow all (`0.0.0.0/0`) or use Railway's [public networking](https://docs.railway.app/guides/public-networking) to get a static IP.
+
+---
+
+### Firebase — Production config (required for both)
+
+For Google sign-in to work in production, add your production domains:
+
+1. **Firebase Console → Authentication → Settings → Authorized domains**
+2. Add:
+   - `your-frontend.vercel.app`
+   - `your-backend.railway.app`
+
+3. (Optional but recommended) Set `FIREBASE_SERVICE_ACCOUNT` on Railway:
+
 ```bash
-cd client
-npm run build
-```
-
-Deploy the `client/dist` folder. Set the environment variables in the hosting dashboard.
-
-### Option C — Docker (if preferred)
-
-```bash
-docker build -t smarthire-server ./server
-docker run -p 5000:5000 --env-file ./server/.env smarthire-server
+# Convert your Firebase Admin JSON to a single line and add to Railway env
+# In your terminal:
+$env:SERVICE_ACCOUNT = Get-Content -Raw firebase-key.json | ForEach-Object { $_ -replace "`r`n", " " -replace "`n", " " }
+# Then paste the value into Railway dashboard as FIREBASE_SERVICE_ACCOUNT
 ```
 
 ---
