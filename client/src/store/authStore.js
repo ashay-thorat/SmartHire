@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import { auth, googleProvider } from '../firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -61,6 +62,30 @@ export const useAuthStore = create((set, get) => ({
       return user;
     } catch (err) {
       const msg = err.response?.data?.message || 'Login failed';
+      set({ error: msg, loading: false });
+      throw new Error(msg);
+    }
+  },
+
+  googleLogin: async (role) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await auth.signInWithPopup(googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      const response = await api.post('/auth/google', { idToken, role });
+      const { user, accessToken, refreshToken } = response.data;
+
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+
+      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
+      set({ user, accessToken, refreshToken, loading: false });
+      return user;
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Google sign-in failed';
       set({ error: msg, loading: false });
       throw new Error(msg);
     }

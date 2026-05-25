@@ -121,6 +121,66 @@ export const refresh = async (req, res, next) => {
   }
 };
 
+export const googleLogin = async (req, res, next) => {
+  try {
+    const { idToken, role } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: 'ID token is required' });
+    }
+
+    let admin;
+    try {
+      admin = (await import('../config/firebaseAdmin.js')).default;
+    } catch {
+      return res.status(500).json({ message: 'Firebase Admin not configured' });
+    }
+
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(idToken);
+    } catch {
+      return res.status(401).json({ message: 'Invalid Firebase token' });
+    }
+
+    const { email, name, picture } = decoded;
+
+    let foundUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    let user;
+    if (foundUsers.length === 0) {
+      if (!role || !['candidate', 'recruiter'].includes(role)) {
+        return res.status(400).json({ message: 'Role is required for new accounts' });
+      }
+      [user] = await db.insert(users).values({
+        email,
+        passwordHash: 'google-oauth',
+        role,
+        name: name || email.split('@')[0],
+        avatarUrl: picture || null,
+      }).returning();
+    } else {
+      user = foundUsers[0];
+    }
+
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+      },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMe = async (req, res) => {
   res.json({
     id: req.user.id,

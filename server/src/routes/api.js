@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, refresh, getMe } from '../controllers/authController.js';
+import { register, login, refresh, getMe, googleLogin } from '../controllers/authController.js';
 import { uploadResume, getMatches, getProfile, updateProfile } from '../controllers/candidateController.js';
 import { getJobs, getJobById, applyToJob, getMyApplications, saveJob, unsaveJob, getSavedJobs } from '../controllers/jobController.js';
 import {
@@ -27,6 +27,7 @@ const router = Router();
 router.post('/auth/register', register);
 router.post('/auth/login', login);
 router.post('/auth/refresh', refresh);
+router.post('/auth/google', googleLogin);
 router.get('/auth/me', protect, getMe);
 
 // ==========================================
