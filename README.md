@@ -1,4 +1,4 @@
-# SmartHire 💼
+# SmartHire Job Platform 💼
 
 SmartHire is a dual-sided AI recruitment platform. Candidates upload resumes, get AI skill matching with job recommendations, and apply to both internal and external jobs. Recruiters post jobs, evaluate resumes with AI-powered 4-dimension scoring, and manage candidates through a Kanban pipeline. Admins oversee users, roles, and platform stats.
 
@@ -299,4 +299,4 @@ SmartHire/
 
 ## Author
 
-Ashay Creative
+Ashay Thorat
