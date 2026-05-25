@@ -258,4 +258,4 @@ SmartHire/
 
 ## Author
 
-Ashay Creative
+Ashay Thorat
