@@ -190,7 +190,7 @@ export default function Register() {
               } catch {}
             }}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors text-sm font-medium text-accent shadow-sm"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-slate-300 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 transition-colors text-sm font-semibold text-slate-700 shadow-sm"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
