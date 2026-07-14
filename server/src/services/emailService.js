@@ -1,22 +1,45 @@
 import nodemailer from 'nodemailer';
-import { Resend } from 'resend';
 
 // ─── Email Provider Strategy ───────────────────────────────────────
-// Production (Render/Railway): Uses Resend HTTP API (not blocked by cloud platforms)
+// Production (Render/Railway): Uses Brevo HTTP API (free, no domain needed)
 // Local Development: Uses SMTP (Gmail) or Ethereal for testing
 // ────────────────────────────────────────────────────────────────────
 
-let resendClient = null;
 let transporter = null;
 
-const useResend = () => !!process.env.RESEND_API_KEY;
+const useBrevo = () => !!process.env.BREVO_API_KEY;
 
-// Initialize Resend (HTTP-based, works on all cloud platforms)
-const initResend = () => {
-  if (resendClient) return resendClient;
-  console.log('[EmailService] ✅ Using Resend HTTP API (production-ready)');
-  resendClient = new Resend(process.env.RESEND_API_KEY);
-  return resendClient;
+// Send email via Brevo HTTP API (works on all cloud platforms)
+const sendViaBrevo = async ({ to, subject, html }) => {
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || 'agentmaster75@gmail.com';
+  const senderName = process.env.BREVO_SENDER_NAME || 'SmartHire';
+
+  console.log(`[EmailService] Sending email via Brevo to: ${to}`);
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('[EmailService] ❌ Brevo error:', data);
+    throw new Error(data.message || 'Failed to send email via Brevo');
+  }
+
+  console.log('[EmailService] ✅ Email sent via Brevo! MessageId:', data.messageId);
+  return data;
 };
 
 // Initialize Nodemailer (SMTP-based, for local development)
@@ -49,24 +72,8 @@ const initTransporter = async () => {
 
 // ─── Unified Send Function ─────────────────────────────────────────
 const sendEmail = async ({ to, subject, html }) => {
-  if (useResend()) {
-    const resend = initResend();
-    const fromAddress = process.env.RESEND_FROM || 'SmartHire <onboarding@resend.dev>';
-    console.log(`[EmailService] Sending email via Resend to: ${to}`);
-    
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: [to],
-      subject,
-      html,
-    });
-
-    if (error) {
-      console.error('[EmailService] ❌ Resend error:', error);
-      throw new Error(error.message);
-    }
-    console.log('[EmailService] ✅ Email sent via Resend:', data.id);
-    return data;
+  if (useBrevo()) {
+    return await sendViaBrevo({ to, subject, html });
   } else {
     // Fallback to SMTP (local development)
     const t = await initTransporter();
