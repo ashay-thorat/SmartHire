@@ -1,10 +1,19 @@
 import nodemailer from 'nodemailer';
 
 let transporter = null;
+let transporterVerified = false;
 
 // Initialize the Nodemailer transporter
 const initTransporter = async () => {
-  if (transporter) return transporter;
+  if (transporter && transporterVerified) return transporter;
+
+  console.log('[EmailService] Initializing email transporter...');
+  console.log('[EmailService] SMTP_HOST:', process.env.SMTP_HOST || '(not set)');
+  console.log('[EmailService] SMTP_PORT:', process.env.SMTP_PORT || '(not set)');
+  console.log('[EmailService] SMTP_SECURE:', process.env.SMTP_SECURE || '(not set)');
+  console.log('[EmailService] SMTP_USER:', process.env.SMTP_USER || '(not set)');
+  console.log('[EmailService] SMTP_PASS:', process.env.SMTP_PASS ? '****SET****' : '(not set)');
+  console.log('[EmailService] SMTP_FROM:', process.env.SMTP_FROM || '(not set)');
 
   // Use Ethereal Email for testing if no SMTP is provided
   if (!process.env.SMTP_HOST) {
@@ -24,13 +33,26 @@ const initTransporter = async () => {
     // Real SMTP configuration
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT || 587,
+      port: parseInt(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
     });
+  }
+
+  // Verify the SMTP connection
+  try {
+    await transporter.verify();
+    console.log('[EmailService] ✅ SMTP connection verified successfully!');
+    transporterVerified = true;
+  } catch (verifyError) {
+    console.error('[EmailService] ❌ SMTP connection verification FAILED:', verifyError.message);
+    // Reset so it retries next time
+    transporter = null;
+    transporterVerified = false;
+    throw verifyError;
   }
 
   return transporter;
