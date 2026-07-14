@@ -1,86 +1,91 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
+// ─── Email Provider Strategy ───────────────────────────────────────
+// Production (Render/Railway): Uses Resend HTTP API (not blocked by cloud platforms)
+// Local Development: Uses SMTP (Gmail) or Ethereal for testing
+// ────────────────────────────────────────────────────────────────────
+
+let resendClient = null;
 let transporter = null;
-let transporterVerified = false;
 
-// Initialize the Nodemailer transporter
+const useResend = () => !!process.env.RESEND_API_KEY;
+
+// Initialize Resend (HTTP-based, works on all cloud platforms)
+const initResend = () => {
+  if (resendClient) return resendClient;
+  console.log('[EmailService] ✅ Using Resend HTTP API (production-ready)');
+  resendClient = new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+};
+
+// Initialize Nodemailer (SMTP-based, for local development)
 const initTransporter = async () => {
-  if (transporter && transporterVerified) return transporter;
+  if (transporter) return transporter;
 
-  console.log('[EmailService] Initializing email transporter...');
-  console.log('[EmailService] SMTP_HOST:', process.env.SMTP_HOST || '(not set)');
-  console.log('[EmailService] SMTP_PORT:', process.env.SMTP_PORT || '(not set)');
-  console.log('[EmailService] SMTP_SECURE:', process.env.SMTP_SECURE || '(not set)');
-  console.log('[EmailService] SMTP_USER:', process.env.SMTP_USER || '(not set)');
-  console.log('[EmailService] SMTP_PASS:', process.env.SMTP_PASS ? '****SET****' : '(not set)');
-  console.log('[EmailService] SMTP_FROM:', process.env.SMTP_FROM || '(not set)');
-
-  // Use Ethereal Email for testing if no SMTP is provided
   if (!process.env.SMTP_HOST) {
     console.log('[EmailService] SMTP_HOST not set, generating Ethereal test account...');
     const testAccount = await nodemailer.createTestAccount();
-    
     transporter = nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
+      auth: { user: testAccount.user, pass: testAccount.pass },
     });
   } else {
-    // Real SMTP configuration
-    // Try port 587 with STARTTLS first (works on most cloud providers like Render)
-    // Port 465 (direct SSL) is blocked by many cloud platforms
-    const port = parseInt(process.env.SMTP_PORT) || 587;
-    const useSSL = port === 465;
-
-    console.log(`[EmailService] Connecting to ${process.env.SMTP_HOST}:${port} (${useSSL ? 'SSL' : 'STARTTLS'})...`);
-
+    console.log(`[EmailService] Using SMTP: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: port,
-      secure: useSSL,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
     });
   }
-
-  // Verify the SMTP connection
-  try {
-    await transporter.verify();
-    console.log('[EmailService] ✅ SMTP connection verified successfully!');
-    transporterVerified = true;
-  } catch (verifyError) {
-    console.error('[EmailService] ❌ SMTP connection verification FAILED:', verifyError.message);
-    // Reset so it retries next time
-    transporter = null;
-    transporterVerified = false;
-    throw verifyError;
-  }
-
   return transporter;
 };
 
-// Helper to log and return message URL (for Ethereal)
-const logEmailInfo = (info) => {
-  console.log('[EmailService] Email sent:', info.messageId);
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) {
-    console.log('[EmailService] 📧 Preview URL:', previewUrl);
+// ─── Unified Send Function ─────────────────────────────────────────
+const sendEmail = async ({ to, subject, html }) => {
+  if (useResend()) {
+    const resend = initResend();
+    const fromAddress = process.env.RESEND_FROM || 'SmartHire <onboarding@resend.dev>';
+    console.log(`[EmailService] Sending email via Resend to: ${to}`);
+    
+    const { data, error } = await resend.emails.send({
+      from: fromAddress,
+      to: [to],
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error('[EmailService] ❌ Resend error:', error);
+      throw new Error(error.message);
+    }
+    console.log('[EmailService] ✅ Email sent via Resend:', data.id);
+    return data;
+  } else {
+    // Fallback to SMTP (local development)
+    const t = await initTransporter();
+    const from = process.env.SMTP_FROM || '"SmartHire" <noreply@smarthire.com>';
+    console.log(`[EmailService] Sending email via SMTP to: ${to}`);
+
+    const info = await t.sendMail({ from, to, subject, html });
+    console.log('[EmailService] ✅ Email sent via SMTP:', info.messageId);
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.log('[EmailService] 📧 Preview URL:', previewUrl);
+    }
+    return info;
   }
 };
 
+// ─── Status Update Email ───────────────────────────────────────────
 export const sendStatusUpdateEmail = async (candidateEmail, candidateName, jobTitle, companyName, newStatus) => {
   try {
-    const t = await initTransporter();
-    
     let subject = '';
     let html = '';
 
@@ -143,23 +148,15 @@ export const sendStatusUpdateEmail = async (candidateEmail, candidateName, jobTi
         return; 
     }
 
-    const info = await t.sendMail({
-      from: process.env.SMTP_FROM || '"SmartHire" <noreply@smarthire.com>',
-      to: candidateEmail,
-      subject,
-      html,
-    });
-
-    logEmailInfo(info);
+    await sendEmail({ to: candidateEmail, subject, html });
   } catch (error) {
     console.error('[EmailService] Failed to send status update email:', error);
   }
 };
 
+// ─── Password Reset Email ──────────────────────────────────────────
 export const sendPasswordResetEmail = async (email, name, resetUrl) => {
   try {
-    const t = await initTransporter();
-
     const subject = 'Password Reset Request - SmartHire';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
@@ -174,14 +171,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
       </div>
     `;
 
-    const info = await t.sendMail({
-      from: process.env.SMTP_FROM || '"SmartHire Support" <support@smarthire.com>',
-      to: email,
-      subject,
-      html,
-    });
-
-    logEmailInfo(info);
+    await sendEmail({ to: email, subject, html });
   } catch (error) {
     console.error('[EmailService] Failed to send password reset email:', error);
   }
