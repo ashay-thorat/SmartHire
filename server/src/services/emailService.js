@@ -31,14 +31,24 @@ const initTransporter = async () => {
     });
   } else {
     // Real SMTP configuration
+    // Try port 587 with STARTTLS first (works on most cloud providers like Render)
+    // Port 465 (direct SSL) is blocked by many cloud platforms
+    const port = parseInt(process.env.SMTP_PORT) || 587;
+    const useSSL = port === 465;
+
+    console.log(`[EmailService] Connecting to ${process.env.SMTP_HOST}:${port} (${useSSL ? 'SSL' : 'STARTTLS'})...`);
+
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      port: port,
+      secure: useSSL,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
   }
 
