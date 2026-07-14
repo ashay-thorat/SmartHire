@@ -18,10 +18,18 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype === 'application/pdf') {
-    cb(null, true);
+  if (file.fieldname === 'logo') {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images are supported for logos!'), false);
+    }
   } else {
-    cb(new Error('Only PDF resumes are supported!'), false);
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF resumes are supported!'), false);
+    }
   }
 };
 

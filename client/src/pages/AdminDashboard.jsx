@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../store/authStore'
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 
 function AdminDashboard() {
   const { user } = useAuthStore()
@@ -11,6 +12,11 @@ function AdminDashboard() {
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(null)
   const [stats, setStats] = useState(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const limit = 20
+
+  const COLORS = ['#10b981', '#3b82f6', '#f59e0b']; // emerald for candidates, blue for recruiters, amber for admins
 
   useEffect(() => {
     if (!user || user.role !== 'admin') return
@@ -18,10 +24,11 @@ function AdminDashboard() {
     const fetchData = async () => {
       try {
         const [usersRes, statsRes] = await Promise.all([
-          api.get('/admin/users'),
+          api.get(`/admin/users?page=${page}&limit=${limit}`),
           api.get('/admin/stats'),
         ])
-        setUsers(usersRes.data)
+        setUsers(usersRes.data.users)
+        setTotalPages(usersRes.data.totalPages)
         setStats(statsRes.data)
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to fetch data')
@@ -31,7 +38,7 @@ function AdminDashboard() {
     }
 
     fetchData()
-  }, [user])
+  }, [user, page])
 
   const handleRoleChange = async (userId, newRole) => {
     setActionLoading(userId)
@@ -86,6 +93,12 @@ function AdminDashboard() {
     )
   }
 
+  const roleData = stats ? [
+    { name: 'Candidates', value: stats.candidates || 0 },
+    { name: 'Recruiters', value: stats.recruiters || 0 },
+    { name: 'Admins', value: (stats.totalUsers || 0) - (stats.candidates || 0) - (stats.recruiters || 0) }
+  ] : [];
+
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -101,23 +114,64 @@ function AdminDashboard() {
               Manage platform credentials, update access permissions, and revoke accounts.
             </p>
           </div>
-          {stats && (
-            <div className="flex gap-3">
-              <div className="bg-white px-4 py-2 rounded-xl border border-border-subtle text-center shadow-sm">
-                <p className="text-lg font-heading font-extrabold text-accent">{stats.totalUsers}</p>
-                <p className="text-[10px] text-text-muted">Total</p>
+        </div>
+
+        {stats && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+            <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-white px-6 py-5 rounded-xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                <p className="text-3xl font-heading font-extrabold text-accent">{stats.totalUsers}</p>
+                <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Total Users</p>
               </div>
-              <div className="bg-white px-4 py-2 rounded-xl border border-border-subtle text-center shadow-sm">
-                <p className="text-lg font-heading font-extrabold text-accent">{stats.candidates}</p>
-                <p className="text-[10px] text-text-muted">Candidates</p>
+              <div className="bg-white px-6 py-5 rounded-xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                <p className="text-3xl font-heading font-extrabold text-emerald-600">{stats.candidates}</p>
+                <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Candidates</p>
               </div>
-              <div className="bg-white px-4 py-2 rounded-xl border border-border-subtle text-center shadow-sm">
-                <p className="text-lg font-heading font-extrabold text-accent">{stats.recruiters}</p>
-                <p className="text-[10px] text-text-muted">Recruiters</p>
+              <div className="bg-white px-6 py-5 rounded-xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                <p className="text-3xl font-heading font-extrabold text-blue-600">{stats.recruiters}</p>
+                <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Recruiters</p>
+              </div>
+              <div className="bg-white px-6 py-5 rounded-xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                <p className="text-3xl font-heading font-extrabold text-accent">{stats.totalJobs || 0}</p>
+                <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Active Jobs</p>
+              </div>
+              <div className="bg-white px-6 py-5 rounded-xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                <p className="text-3xl font-heading font-extrabold text-accent">{stats.totalApplications || 0}</p>
+                <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Applications</p>
+              </div>
+              <div className="bg-white px-6 py-5 rounded-xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                <p className="text-3xl font-heading font-extrabold text-amber-600">{stats.totalEvaluations || 0}</p>
+                <p className="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">AI Evaluations</p>
               </div>
             </div>
-          )}
-        </div>
+
+            <div className="bg-white rounded-xl border border-border-subtle shadow-sm p-4 h-64 flex flex-col">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2 text-center">User Roles Distribution</h3>
+              <div className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={roleData}
+                      innerRadius={50}
+                      outerRadius={70}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {roleData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                      itemStyle={{ color: '#1f2937', fontWeight: 600 }}
+                    />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl px-4 py-3 mb-6">
@@ -221,6 +275,31 @@ function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="bg-white px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                <p className="text-xs text-text-muted">
+                  Page <span className="font-semibold text-accent">{page}</span> of <span className="font-semibold text-accent">{totalPages}</span>
+                </p>
+                <div className="flex gap-2">
+                  <button 
+                    disabled={page === 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-text-muted hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    disabled={page === totalPages}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-text-muted hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

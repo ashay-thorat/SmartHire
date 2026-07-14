@@ -99,3 +99,33 @@ export const evaluateResumeAgainstRole = async (resumeText, jobRole, jobDescript
     throw new Error('AI resume evaluation failed');
   }
 };
+
+export const generateCoverLetter = async (resumeText, jobDescription) => {
+  try {
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert career coach and copywriter. Your task is to write a highly professional, engaging, and tailored cover letter for a candidate applying to a job. Use the candidate\'s resume and the job description to match their skills and experience with the role\'s requirements. Do not include markdown code block syntax. Return only the raw text of the cover letter.'
+        },
+        {
+          role: 'user',
+          content: `Write a cover letter based on the following.
+          
+          Job Description:
+          ${jobDescription}
+
+          Candidate's Resume:
+          ${resumeText}
+          `
+        }
+      ]
+    });
+
+    return response.choices[0]?.message?.content || 'Error generating cover letter.';
+  } catch (error) {
+    console.error('Groq Cover Letter Error:', error);
+    throw new Error('AI cover letter generation failed');
+  }
+};

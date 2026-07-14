@@ -6,6 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +15,6 @@ export const api = axios.create({
 export const useAuthStore = create((set, get) => ({
   user: JSON.parse(localStorage.getItem('user')) || null,
   accessToken: localStorage.getItem('accessToken') || null,
-  refreshToken: localStorage.getItem('refreshToken') || null,
   loading: false,
   error: null,
 
@@ -29,15 +29,14 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await api.post('/auth/register', { name, email, password, role });
-      const { user, accessToken, refreshToken } = response.data;
+      const { user, accessToken } = response.data;
       
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
       
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       
-      set({ user, accessToken, refreshToken, loading: false });
+      set({ user, accessToken, loading: false });
       return user;
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed';
@@ -50,15 +49,14 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { user, accessToken, refreshToken } = response.data;
+      const { user, accessToken } = response.data;
       
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
       
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       
-      set({ user, accessToken, refreshToken, loading: false });
+      set({ user, accessToken, loading: false });
       return user;
     } catch (err) {
       const msg = err.response?.data?.message || 'Login failed';
@@ -74,15 +72,14 @@ export const useAuthStore = create((set, get) => ({
       const idToken = await result.user.getIdToken();
 
       const response = await api.post('/auth/google', { idToken, role });
-      const { user, accessToken, refreshToken } = response.data;
+      const { user, accessToken } = response.data;
 
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
 
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
-      set({ user, accessToken, refreshToken, loading: false });
+      set({ user, accessToken, loading: false });
       return user;
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Google sign-in failed';
@@ -91,20 +88,49 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     delete api.defaults.headers.common['Authorization'];
-    set({ user: null, accessToken: null, refreshToken: null, error: null });
+    set({ user: null, accessToken: null, error: null });
+  },
+
+  forgotPassword: async (email) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await api.post('/auth/forgot-password', { email });
+      set({ loading: false });
+      return response.data.message;
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to send reset email';
+      set({ error: msg, loading: false });
+      throw new Error(msg);
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await api.post('/auth/reset-password', { token, newPassword });
+      set({ loading: false });
+      return response.data.message;
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Password reset failed';
+      set({ error: msg, loading: false });
+      throw new Error(msg);
+    }
   },
 
   refreshAccessToken: async () => {
-    const { refreshToken } = get();
-    if (!refreshToken) return;
-    
     try {
-      const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+      const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
+        withCredentials: true // send cookies
+      });
       const { accessToken } = response.data;
       
       localStorage.setItem('accessToken', accessToken);

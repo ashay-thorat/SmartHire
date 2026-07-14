@@ -172,7 +172,7 @@ export default function Profile() {
                   <FileText className="h-10 w-10 text-primary mb-3" />
                   <p className="text-xs font-semibold text-accent truncate max-w-full px-2">Resume Uploaded</p>
                   <a 
-                    href={`http://localhost:5000${profile.resumeUrl}`} 
+                    href={`${import.meta.env.VITE_API_URL || ''}${profile.resumeUrl}`} 
                     target="_blank" 
                     rel="noreferrer"
                     className="text-[10px] text-primary hover:underline font-bold mt-1.5"

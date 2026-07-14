@@ -42,6 +42,9 @@ function KanbanCard({ app }) {
       ref={setNodeRef}
       style={style}
       className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:border-sky-100 transition-all"
+      role="article"
+      aria-roledescription="draggable card"
+      aria-label={`${app.candidate?.name || 'Unknown Candidate'} applying for ${app.job?.title || 'Unknown Job'}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
@@ -51,13 +54,16 @@ function KanbanCard({ app }) {
             Applied {new Date(app.appliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </p>
         </div>
-        <div
+        <button
+          type="button"
           {...attributes}
           {...listeners}
           className="text-slate-300 hover:text-slate-400 cursor-grab mt-0.5 shrink-0"
+          aria-label={`Drag ${app.candidate?.name || 'candidate'}`}
+          title={`Drag ${app.candidate?.name || 'candidate'}`}
         >
           <GripVertical className="h-4 w-4" />
-        </div>
+        </button>
       </div>
 
       {app.candidate?.currentTitle && (
@@ -72,7 +78,7 @@ function KanbanCard({ app }) {
 function DragOverlayCard({ app }) {
   if (!app) return null;
   return (
-    <div className="bg-white border border-sky-200 rounded-xl p-3.5 shadow-2xl rotate-1 scale-105 cursor-grabbing">
+    <div className="bg-white border border-sky-200 rounded-xl p-3.5 shadow-2xl rotate-1 scale-105 cursor-grabbing" aria-hidden="true">
       <h4 className="text-xs font-bold text-accent leading-none">{app.candidate?.name || 'Unknown'}</h4>
       <p className="text-[10px] text-text-muted mt-0.5">{app.job?.title}</p>
     </div>
@@ -83,7 +89,12 @@ function KanbanColumn({ column, items }) {
   const { setNodeRef } = useSortable({ id: column.id });
 
   return (
-    <div ref={setNodeRef} className="flex flex-col bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden min-w-0 w-full flex-1">
+    <div 
+      ref={setNodeRef} 
+      className="flex flex-col bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden min-w-0 w-full flex-1"
+      role="region"
+      aria-label={`${column.label} pipeline column with ${items.length} candidates`}
+    >
       {/* Column Header */}
       <div className={`px-4 py-3 border-b ${column.border} ${column.color}`}>
         <div className="flex items-center justify-between">
@@ -97,7 +108,7 @@ function KanbanColumn({ column, items }) {
       </div>
 
       {/* Cards */}
-      <div className="p-3 space-y-2.5 flex-1 min-h-[200px] overflow-y-auto">
+      <div className="p-3 space-y-2.5 flex-1 min-h-[200px] overflow-y-auto" role="list" aria-label={`Candidates in ${column.label}`}>
         <SortableContext items={items.map(a => a.id)} strategy={verticalListSortingStrategy}>
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-slate-200 rounded-xl">

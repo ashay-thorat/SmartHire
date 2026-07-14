@@ -1,11 +1,23 @@
 import { db } from '../db/index.js';
-import { users } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { users, jobs, applications, resumeScores } from '../db/schema.js';
+import { eq, sql } from 'drizzle-orm';
 
 export const getAllUsers = async (req, res, next) => {
   try {
-    const allUsers = await db.select().from(users);
-    res.json(allUsers);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    const allUsers = await db.select().from(users).limit(limit).offset(offset);
+    const [totalCount] = await db.select({ count: sql`count(*)` }).from(users);
+
+    res.json({
+      users: allUsers,
+      total: Number(totalCount?.count) || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((Number(totalCount?.count) || 0) / limit)
+    });
   } catch (error) {
     next(error);
   }
@@ -51,16 +63,23 @@ export const deleteUser = async (req, res, next) => {
 
 export const getAdminStats = async (req, res, next) => {
   try {
-    const allUsers = await db.select().from(users);
-    const candidates = allUsers.filter(u => u.role === 'candidate').length;
-    const recruiters = allUsers.filter(u => u.role === 'recruiter').length;
-    const admins = allUsers.filter(u => u.role === 'admin').length;
+    const [totalUsersRes] = await db.select({ count: sql`count(*)` }).from(users);
+    const [candidatesRes] = await db.select({ count: sql`count(*)` }).from(users).where(eq(users.role, 'candidate'));
+    const [recruitersRes] = await db.select({ count: sql`count(*)` }).from(users).where(eq(users.role, 'recruiter'));
+    const [adminsRes] = await db.select({ count: sql`count(*)` }).from(users).where(eq(users.role, 'admin'));
+
+    const [jobsCountResult] = await db.select({ count: sql`count(*)` }).from(jobs);
+    const [appsCountResult] = await db.select({ count: sql`count(*)` }).from(applications);
+    const [evalsCountResult] = await db.select({ count: sql`count(*)` }).from(resumeScores);
 
     res.json({
-      totalUsers: allUsers.length,
-      candidates,
-      recruiters,
-      admins,
+      totalUsers: Number(totalUsersRes?.count) || 0,
+      candidates: Number(candidatesRes?.count) || 0,
+      recruiters: Number(recruitersRes?.count) || 0,
+      admins: Number(adminsRes?.count) || 0,
+      totalJobs: Number(jobsCountResult?.count) || 0,
+      totalApplications: Number(appsCountResult?.count) || 0,
+      totalEvaluations: Number(evalsCountResult?.count) || 0,
     });
   } catch (error) {
     next(error);

@@ -12,6 +12,7 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    this.setState({ errorInfo });
   }
 
   render() {
@@ -28,6 +29,14 @@ export default class ErrorBoundary extends React.Component {
             <p className="text-text-muted text-sm mb-6">
               An unexpected error occurred. Please try refreshing the page.
             </p>
+            {this.state.error && (
+              <div className="text-left bg-rose-50 text-rose-800 p-4 rounded-xl text-xs overflow-auto mb-6 max-h-[300px]">
+                <p className="font-bold mb-1">{this.state.error.toString()}</p>
+                {this.state.errorInfo && (
+                  <pre className="whitespace-pre-wrap">{this.state.errorInfo.componentStack}</pre>
+                )}
+              </div>
+            )}
             <button
               onClick={() => window.location.reload()}
               className="btn-primary py-2.5 px-6 text-sm"

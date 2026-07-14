@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useJobStore } from '../store/jobStore.js';
 import { useAuthStore } from '../store/authStore.js';
 import {
@@ -57,6 +58,8 @@ export default function Jobs() {
   const [modalError, setModalError] = useState('');
   const [submittingApp, setSubmittingApp] = useState(false);
 
+  const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false);
+
   useEffect(() => {
     fetchAllJobs(filters);
     fetchSavedJobs();
@@ -104,6 +107,22 @@ export default function Jobs() {
   const closeApplyModal = () => {
     setSelectedJob(null);
     setCoverLetter('');
+  };
+
+  const handleGenerateCoverLetter = async () => {
+    if (!selectedJob) return;
+    setGeneratingCoverLetter(true);
+    setModalError('');
+    try {
+      // Use the api instance from authStore to ensure interceptors and token refresh work
+      const { api } = await import('../store/authStore.js');
+      const response = await api.post('/resume/cover-letter', { jobId: selectedJob.id });
+      setCoverLetter(response.data.coverLetter);
+    } catch (err) {
+      setModalError(err.response?.data?.message || err.message || 'Failed to generate cover letter');
+    } finally {
+      setGeneratingCoverLetter(false);
+    }
   };
 
   const handleApplySubmit = async (e) => {
@@ -359,7 +378,17 @@ export default function Jobs() {
                             {job.logo && (
                               <img src={job.logo} alt="" className="h-5 w-5 object-contain mt-1 rounded" onError={(e) => e.target.style.display = 'none'} />
                             )}
-                            <p className="text-xs text-text-muted font-medium mt-1">{job.company}</p>
+                            {job.recruiterId && !job.isExternal ? (
+                              <Link 
+                                to={`/company/${job.recruiterId}`} 
+                                className="text-xs text-primary font-medium mt-1 hover:underline inline-block"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {job.company}
+                              </Link>
+                            ) : (
+                              <p className="text-xs text-text-muted font-medium mt-1">{job.company}</p>
+                            )}
                           </div>
 
                           {/* Bookmark Save icon (internal only) */}
@@ -523,7 +552,18 @@ export default function Jobs() {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-accent text-[10px] font-bold block uppercase tracking-wider">Cover Letter Introduction</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-accent text-[10px] font-bold uppercase tracking-wider">Cover Letter Introduction</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateCoverLetter}
+                    disabled={generatingCoverLetter}
+                    className="text-[10px] font-bold text-primary flex items-center gap-1 hover:text-sky-700 disabled:opacity-50"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    {generatingCoverLetter ? 'Generating...' : 'AI Generate'}
+                  </button>
+                </div>
                 <textarea
                   value={coverLetter}
                   onChange={(e) => setCoverLetter(e.target.value)}

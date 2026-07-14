@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Briefcase, Key, Mail, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Briefcase, Key, Mail, AlertTriangle, ArrowRight, CheckCircle } from 'lucide-react';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
-  const { login, googleLogin, loading, error } = useAuthStore();
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const { login, googleLogin, forgotPassword, loading, error } = useAuthStore();
   const navigate = useNavigate();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -50,6 +52,13 @@ export default function Login() {
         </div>
 
         <div className="bg-white border border-border-subtle rounded-2xl p-8 shadow-xl shadow-sky-200/10">
+          {successMsg && (
+            <div className="bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs rounded-xl px-4 py-3 mb-6 flex items-start gap-2.5">
+              <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {error && (
             <div className="bg-rose-50 border border-rose-100 text-rose-600 text-xs rounded-xl px-4 py-3 mb-6 flex items-start gap-2.5">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -79,6 +88,12 @@ export default function Login() {
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-accent text-xs font-semibold uppercase tracking-wider">Password</label>
+                <Link 
+                  to="/forgot-password"
+                  className="text-primary hover:text-primary-dark text-xs font-semibold"
+                >
+                  Forgot Password?
+                </Link>
               </div>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-text-muted">

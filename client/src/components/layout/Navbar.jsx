@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore.js';
 import { 
@@ -13,7 +13,9 @@ import {
   Search, 
   FolderGit,
   Clock,
-  Shield
+  Shield,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -21,6 +23,36 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return document.documentElement.classList.contains('dark') || localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+      setIsDarkMode(true);
+    } else if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.classList.remove('dark');
+      setIsDarkMode(false);
+    } else {
+      // Default to light if nothing set
+      document.documentElement.classList.remove('dark');
+      setIsDarkMode(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDarkMode(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDarkMode(true);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -114,6 +146,10 @@ export default function Navbar() {
                       <FolderGit className="h-4 w-4" />
                       Kanban Board
                     </Link>
+                    <Link to="/recruiter/settings" className={linkClass('/recruiter/settings')}>
+                      <User className="h-4 w-4" />
+                      Settings
+                    </Link>
                   </>
                 )}
 
@@ -121,6 +157,13 @@ export default function Navbar() {
                 <div className="h-6 w-px bg-slate-200 mx-2"></div>
 
                 <div className="flex items-center gap-3">
+                  <button 
+                    onClick={toggleTheme} 
+                    className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-accent transition-colors"
+                    title="Toggle Dark Mode"
+                  >
+                    {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </button>
                   <div className="text-right">
                     <p className="text-xs font-semibold text-accent leading-none">{user.name}</p>
                     <p className="text-[10px] text-text-muted mt-0.5 capitalize">{user.role}</p>
@@ -132,6 +175,13 @@ export default function Navbar() {
               </>
             ) : (
               <div className="flex items-center gap-3">
+                <button 
+                  onClick={toggleTheme} 
+                  className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-accent transition-colors"
+                  title="Toggle Dark Mode"
+                >
+                  {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
                 <Link to="/login" className="btn-outline text-sm py-2 px-4">
                   Log In
                 </Link>
@@ -215,6 +265,10 @@ export default function Navbar() {
                     <FolderGit className="h-4 w-4" />
                     Kanban Board
                   </Link>
+                  <Link to="/recruiter/settings" className={linkClass('/recruiter/settings')} onClick={() => setMobileMenuOpen(false)}>
+                    <User className="h-4 w-4" />
+                    Settings
+                  </Link>
                   <Link to="/history" className={linkClass('/history')} onClick={() => setMobileMenuOpen(false)}>
                     <Clock className="h-4 w-4" />
                     History
@@ -224,14 +278,22 @@ export default function Navbar() {
 
               {/* Profile Details & Logout */}
               <div className="pt-4 pb-2 border-t border-slate-100 mt-2 px-3">
-                <div className="flex items-center gap-3">
-                  <div className="bg-sky-100 text-primary h-10 w-10 rounded-xl flex items-center justify-center font-bold font-heading text-lg">
-                    {user.name[0].toUpperCase()}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-sky-100 text-primary h-10 w-10 rounded-xl flex items-center justify-center font-bold font-heading text-lg">
+                      {user.name[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-accent leading-none">{user.name}</p>
+                      <p className="text-xs text-text-muted mt-1 capitalize">{user.role}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-accent leading-none">{user.name}</p>
-                    <p className="text-xs text-text-muted mt-1 capitalize">{user.role}</p>
-                  </div>
+                  <button 
+                    onClick={toggleTheme} 
+                    className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-accent transition-colors"
+                  >
+                    {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  </button>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -244,6 +306,15 @@ export default function Navbar() {
             </>
           ) : (
             <div className="pt-2 pb-2 space-y-2 px-3">
+              <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-sm font-medium text-accent">Theme</span>
+                <button 
+                  onClick={toggleTheme} 
+                  className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-accent transition-colors"
+                >
+                  {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                </button>
+              </div>
               <Link to="/login" className="btn-outline w-full text-center" onClick={() => setMobileMenuOpen(false)}>
                 Log In
               </Link>

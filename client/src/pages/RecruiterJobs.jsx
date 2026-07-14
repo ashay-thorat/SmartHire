@@ -19,6 +19,7 @@ export default function RecruiterJobs() {
   const [showModal, setShowModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [modalError, setModalError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Form State
   const [title, setTitle] = useState('');
@@ -29,6 +30,7 @@ export default function RecruiterJobs() {
   const [jobType, setJobType] = useState('full-time');
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
 
   useEffect(() => {
     fetchMyJobs();
@@ -44,6 +46,7 @@ export default function RecruiterJobs() {
     setJobType('full-time');
     setSalaryMin('');
     setSalaryMax('');
+    setExpiresAt('');
     setModalError('');
     setShowModal(true);
   };
@@ -58,6 +61,7 @@ export default function RecruiterJobs() {
     setJobType(job.jobType);
     setSalaryMin(job.salaryMin.toString());
     setSalaryMax(job.salaryMax.toString());
+    setExpiresAt(job.expiresAt ? new Date(job.expiresAt).toISOString().split('T')[0] : '');
     setModalError('');
     setShowModal(true);
   };
@@ -79,7 +83,8 @@ export default function RecruiterJobs() {
       location,
       jobType,
       salaryMin: parseInt(salaryMin, 10),
-      salaryMax: parseInt(salaryMax, 10)
+      salaryMax: parseInt(salaryMax, 10),
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
 
     try {
@@ -102,6 +107,15 @@ export default function RecruiterJobs() {
     }
   };
 
+  const handleCloseJob = async (job) => {
+    if (!window.confirm('Are you sure you want to close this job? It will be removed from the job board.')) return;
+    try {
+      await updateJob(job.id, { isActive: false, expiresAt: new Date().toISOString() });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 font-sans">
       {/* Header */}
@@ -113,10 +127,20 @@ export default function RecruiterJobs() {
           </h1>
           <p className="text-text-muted text-sm mt-1">Create, pause, edit, and monitor your listed placements.</p>
         </div>
-        <button onClick={openCreateModal} className="btn-primary py-2.5 px-5 text-xs font-semibold shadow-sm flex items-center gap-1.5 self-start">
+        <button onClick={openCreateModal} className="btn-primary py-2.5 px-5 text-xs font-semibold shadow-sm flex items-center gap-1.5 self-start shrink-0">
           <Plus className="h-4 w-4" />
           Post New Job
         </button>
+      </div>
+
+      <div className="mb-6">
+        <input 
+          type="text" 
+          placeholder="Search by title, company, or skills..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="premium-input text-xs w-full max-w-md"
+        />
       </div>
 
       {loading && myJobs.length === 0 ? (
@@ -137,8 +161,15 @@ export default function RecruiterJobs() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {myJobs.map((job) => (
-            <div key={job.id} className={`premium-card p-6 bg-white border-slate-100 flex flex-col justify-between transition-all ${!job.isActive ? 'opacity-75 bg-slate-50/50' : ''}`}>
+          {myJobs.filter(job => {
+            const query = searchQuery.toLowerCase();
+            return job.title.toLowerCase().includes(query) || 
+                   job.company.toLowerCase().includes(query) ||
+                   job.requiredSkills.some(s => s.toLowerCase().includes(query));
+          }).map((job) => {
+            const isClosed = job.expiresAt && new Date(job.expiresAt) < new Date();
+            return (
+            <div key={job.id} className={`premium-card p-6 bg-white border-slate-100 flex flex-col justify-between transition-all ${!job.isActive || isClosed ? 'opacity-75 bg-slate-50/50' : ''}`}>
               <div>
                 <div className="flex justify-between items-start gap-4 mb-3">
                   <div>
@@ -146,11 +177,13 @@ export default function RecruiterJobs() {
                     <p className="text-xs text-text-muted font-semibold mt-0.5">{job.company}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
-                    job.isActive 
-                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
-                      : 'text-slate-500 bg-slate-50 border-slate-200'
+                    isClosed
+                      ? 'text-rose-700 bg-rose-50 border-rose-200'
+                      : job.isActive 
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+                        : 'text-slate-500 bg-slate-50 border-slate-200'
                   }`}>
-                    {job.isActive ? 'Active' : 'Paused'}
+                    {isClosed ? 'Closed' : job.isActive ? 'Active' : 'Paused'}
                   </span>
                 </div>
 
@@ -186,16 +219,29 @@ export default function RecruiterJobs() {
               </div>
 
               {/* Action buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
-                <button
-                  onClick={() => toggleActiveStatus(job)}
-                  className={`btn-outline py-1.5 px-3 text-[10px] font-bold border-slate-200 flex items-center gap-1 cursor-pointer ${
-                    job.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
-                  }`}
-                >
-                  <Power className="h-3.5 w-3.5" />
-                  {job.isActive ? 'Pause Posting' : 'Activate'}
-                </button>
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto flex-wrap">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleActiveStatus(job)}
+                    disabled={isClosed}
+                    className={`btn-outline py-1.5 px-3 text-[10px] font-bold border-slate-200 flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                      job.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <Power className="h-3.5 w-3.5" />
+                    {job.isActive ? 'Pause Posting' : 'Activate'}
+                  </button>
+
+                  {!isClosed && (
+                    <button
+                      onClick={() => handleCloseJob(job)}
+                      className="btn-outline py-1.5 px-3 text-[10px] font-bold border-slate-200 flex items-center gap-1 cursor-pointer text-rose-600 hover:bg-rose-50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Close Job
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex gap-2">
                   <button
@@ -213,7 +259,8 @@ export default function RecruiterJobs() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -316,6 +363,17 @@ export default function RecruiterJobs() {
                     placeholder="e.g. 130000"
                     className="premium-input text-xs"
                     required
+                  />
+                </div>
+                
+                {/* Expiry Date */}
+                <div>
+                  <label className="text-accent text-[10px] font-bold block mb-1 uppercase tracking-wider">Expiry Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={expiresAt}
+                    onChange={(e) => setExpiresAt(e.target.value)}
+                    className="premium-input text-xs"
                   />
                 </div>
               </div>

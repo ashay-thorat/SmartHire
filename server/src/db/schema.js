@@ -7,6 +7,8 @@ export const users = pgTable('users', {
   role: text('role').notNull(), // 'candidate' | 'recruiter'
   name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
+  resetToken: text('reset_token'),
+  resetTokenExpiry: timestamp('reset_token_expiry'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -22,6 +24,16 @@ export const candidateProfiles = pgTable('candidate_profiles', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const recruiterProfiles = pgTable('recruiter_profiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).unique().notNull(),
+  companyName: text('company_name'),
+  companyDescription: text('company_description'),
+  website: text('website'),
+  logoUrl: text('logo_url'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const jobs = pgTable('jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
   recruiterId: uuid('recruiter_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
@@ -34,6 +46,7 @@ export const jobs = pgTable('jobs', {
   salaryMin: integer('salary_min').notNull(),
   salaryMax: integer('salary_max').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
+  expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

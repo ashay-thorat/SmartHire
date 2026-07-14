@@ -22,7 +22,7 @@ const STATUS_CONFIG = {
   Rejected: { label: 'Rejected', color: 'text-rose-600 bg-rose-50 border-rose-200', icon: <AlertCircle className="h-3.5 w-3.5" /> },
 };
 
-function ApplicationCard({ app }) {
+function ApplicationCard({ app, onWithdraw }) {
   const [expanded, setExpanded] = useState(false);
   const statusConfig = STATUS_CONFIG[app.status] || STATUS_CONFIG.Applied;
 
@@ -38,7 +38,16 @@ function ApplicationCard({ app }) {
             </span>
           </div>
 
-          <p className="text-xs font-semibold text-text-muted mb-2">{app.job?.company}</p>
+          {app.job?.recruiterId ? (
+            <Link 
+              to={`/company/${app.job.recruiterId}`}
+              className="text-xs font-semibold text-primary hover:underline mb-2 inline-block"
+            >
+              {app.job?.company}
+            </Link>
+          ) : (
+            <p className="text-xs font-semibold text-text-muted mb-2">{app.job?.company}</p>
+          )}
 
           <div className="flex flex-wrap gap-3 text-xs text-text-muted">
             <span className="flex items-center gap-1">
@@ -62,15 +71,23 @@ function ApplicationCard({ app }) {
           </p>
         </div>
 
-        {app.coverLetter && (
+        <div className="flex items-center gap-4">
+          {app.coverLetter && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline shrink-0 mt-1"
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {expanded ? 'Hide' : 'View'} Cover Letter
+            </button>
+          )}
           <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline shrink-0 self-start mt-1"
+            onClick={() => onWithdraw(app.id)}
+            className="text-xs text-rose-500 font-semibold hover:text-rose-600 hover:underline shrink-0 mt-1"
           >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            {expanded ? 'Hide' : 'View'} Cover Letter
+            Withdraw
           </button>
-        )}
+        </div>
       </div>
 
       {expanded && app.coverLetter && (
@@ -88,10 +105,24 @@ function ApplicationCard({ app }) {
 export default function Applications() {
   const { applications, fetchApplications, loading } = useJobStore();
   const [activeFilter, setActiveFilter] = useState('All');
+  const [withdrawingId, setWithdrawingId] = useState(null);
 
   useEffect(() => {
     fetchApplications();
   }, [fetchApplications]);
+
+  const handleWithdraw = async (appId) => {
+    if (!window.confirm('Are you sure you want to withdraw this application?')) return;
+    try {
+      setWithdrawingId(appId);
+      await import('../store/authStore.js').then(m => m.api.delete(`/applications/${appId}`));
+      fetchApplications();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to withdraw application');
+    } finally {
+      setWithdrawingId(null);
+    }
+  };
 
   const statuses = ['All', 'Applied', 'Reviewed', 'Shortlisted', 'Hired', 'Rejected'];
   const filtered = activeFilter === 'All' ? applications : applications.filter(app => app.status === activeFilter);
@@ -157,7 +188,14 @@ export default function Applications() {
       ) : (
         <div className="space-y-5">
           {filtered.map(app => (
-            <ApplicationCard key={app.id} app={app} />
+            <div key={app.id} className="relative">
+              {withdrawingId === app.id && (
+                <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl">
+                  <div className="w-6 h-6 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+              <ApplicationCard app={app} onWithdraw={handleWithdraw} />
+            </div>
           ))}
         </div>
       )}

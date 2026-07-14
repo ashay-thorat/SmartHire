@@ -14,6 +14,7 @@ import {
   AlertCircle,
   LayoutGrid
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 const STATUS_COLORS = {
   Applied: 'text-slate-600 bg-slate-50 border-slate-200',
@@ -161,16 +162,36 @@ export default function RecruiterDashboard() {
                 <p className="text-xs font-semibold text-accent">No applicants in pipeline</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {['Applied', 'Reviewed', 'Shortlisted', 'Hired'].map(status => {
-                  const count = pipeline.filter(a => a.status === status).length;
-                  return (
-                    <div key={status} className={`p-4 rounded-xl border text-center ${STATUS_COLORS[status]}`}>
-                      <p className="text-2xl font-heading font-extrabold">{count}</p>
-                      <p className="text-[11px] font-semibold mt-1 opacity-80">{status}</p>
-                    </div>
-                  );
-                })}
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {['Applied', 'Reviewed', 'Shortlisted', 'Hired'].map(status => {
+                    const count = pipeline.filter(a => a.status === status).length;
+                    return (
+                      <div key={status} className={`p-4 rounded-xl border text-center ${STATUS_COLORS[status]}`}>
+                        <p className="text-2xl font-heading font-extrabold">{count}</p>
+                        <p className="text-[11px] font-semibold mt-1 opacity-80">{status}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="h-48 mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={['Applied', 'Reviewed', 'Shortlisted', 'Hired', 'Rejected'].map(status => ({
+                      name: status,
+                      count: pipeline.filter(a => a.status === status).length
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} />
+                      <RechartsTooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                        cursor={{ fill: 'transparent' }}
+                      />
+                      <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} barSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             )}
           </div>

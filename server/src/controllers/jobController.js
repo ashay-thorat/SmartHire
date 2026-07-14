@@ -1,13 +1,21 @@
 import { db } from '../db/index.js';
 import { jobs, applications, savedJobs, users } from '../db/schema.js';
-import { eq, and, or, ilike, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, or, ilike, gte, lte, gt, sql, isNull } from 'drizzle-orm';
 
 export const getJobs = async (req, res, next) => {
   try {
-    const { search, location, type, salary_min, salary_max, page, limit } = req.query;
+    const { search, location, type, salary_min, salary_max, page, limit, recruiterId } = req.query;
 
     const whereClause = [];
     whereClause.push(eq(jobs.isActive, true));
+    
+    // Filter out expired jobs
+    whereClause.push(
+      or(
+        isNull(jobs.expiresAt),
+        gt(jobs.expiresAt, new Date())
+      )
+    );
 
     if (search) {
       whereClause.push(
@@ -23,6 +31,9 @@ export const getJobs = async (req, res, next) => {
     }
     if (type) {
       whereClause.push(eq(jobs.jobType, type));
+    }
+    if (recruiterId) {
+      whereClause.push(eq(jobs.recruiterId, recruiterId));
     }
     if (salary_min) {
       whereClause.push(gte(jobs.salaryMin, Number(salary_min)));
@@ -124,6 +135,7 @@ export const getMyApplications = async (req, res, next) => {
         jobType: jobs.jobType,
         salaryMin: jobs.salaryMin,
         salaryMax: jobs.salaryMax,
+        recruiterId: jobs.recruiterId,
       }
     })
     .from(applications)
@@ -131,6 +143,26 @@ export const getMyApplications = async (req, res, next) => {
     .where(eq(applications.candidateId, req.user.id));
 
     res.json(myApps);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const withdrawApplication = async (req, res, next) => {
+  try {
+    const applicationId = req.params.id;
+    // Ensure the application belongs to the current user
+    const [existingApp] = await db.select().from(applications)
+      .where(and(eq(applications.id, applicationId), eq(applications.candidateId, req.user.id)))
+      .limit(1);
+
+    if (!existingApp) {
+      return res.status(404).json({ message: 'Application not found or unauthorized' });
+    }
+
+    await db.delete(applications).where(eq(applications.id, applicationId));
+
+    res.json({ message: 'Application withdrawn successfully' });
   } catch (error) {
     next(error);
   }
